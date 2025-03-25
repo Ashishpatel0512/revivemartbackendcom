@@ -18,7 +18,7 @@ const wrapAsync = require("../utility/wrapAsyc.js")
 const Otp = require("../models/otp.js");
 const sendMail = require("../config/sendmail.js")
 const Ads = require("../models/ads.js");
-
+const Message = require("../models/Message");
 // REGISTER ROUTES
 router.post('/register', wrapAsync(async (req, res) => {
   const { name, emailid, password } = req.body;
@@ -614,5 +614,60 @@ router.post("/forgot/password", (req, res) => {
 
   }
 })
+// THIS IS A CHAT ROUTES 
+router.get("/messages", async (req, res) => {
+  try {
+    const { username,receiver } = req.query;
+    if (!username) return res.status(400).json({ error: "Username is required" });
+
+    // Find messages where the user is either sender or receiver
+    const messages = await Message.find({
+      $or: [
+        { sender: username, receiver: receiver },
+        { sender: receiver, receiver: username }
+    ]
+    }).sort({ createdAt: 1 }); // Sort messages by time
+
+    res.json(messages);
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+router.get("/groupmessages", async (req, res) =>{
+  try {
+      const { username } = req.query;
+      if (!username) return res.status(400).json({ error: "Username is required" });
+
+      // Fetch messages where the user is either sender or receiver
+      const messages = await Message.find({
+          $or: [{ sender: username }, { receiver: username }]
+      }).sort({ createdAt: 1 });
+
+      // Group messages based on sender-receiver pair
+      let groupedMessages = {};
+
+      messages.forEach((msg) => {
+          // Create a unique key for each conversation pair (sorted)
+          let chatKey = [msg.sender, msg.receiver].sort().join("_");
+
+          if (!groupedMessages[chatKey]) {
+              groupedMessages[chatKey] = { participants: [msg.sender, msg.receiver], messages: [] };
+          }
+          
+          groupedMessages[chatKey].messages.push({
+              sender: msg.sender,
+              receiver: msg.receiver,
+              text: msg.message,
+              createdAt: msg.createdAt
+          });
+      });
+
+      res.json(Object.values(groupedMessages)); // Convert object to array for response
+  } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 module.exports = router

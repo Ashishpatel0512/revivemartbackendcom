@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const express = require('express')
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express()
 const port=3000
 const bodyParser = require('body-parser');
@@ -8,6 +10,8 @@ require('dotenv').config();
 const multer  = require('multer')
 const {storage}=require("./utility/cloudConfig.js")
 const upload = multer({ storage })
+const Message = require("./models/Message");
+const Soket=require("./models/soket.js")
 var cors = require('cors')
 const dataconnection=require('./db.js')
 // const mongoose = require("mongoose");
@@ -37,6 +41,7 @@ const corsOptions = {
  app.use(cors(corsOptions));
  app.use(passport.initialize());
 
+ 
 //
 
 // app.get('/', (req, res) => {
@@ -61,6 +66,41 @@ app.use((err, req, res, next) => {
   // res.status(statusCode).json({message});
 })
 
-app.listen(port, () => {
+// soket connection//////////////////////////////////////////////////////////
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+io.on("connection", async (socket) => {
+  console.log("✅ User connected:", socket.id);
+
+  socket.on("register", async (username) => {
+    await Soket.findOneAndUpdate(
+      { username },
+      { socketId: socket.id },
+      { upsert: true }
+    );
+  });
+
+  socket.on("sendMessage", async ({ sender, receiver, message }) => {
+    const receiverUser = await Soket.findOne({ username: receiver });
+    if (receiverUser) {
+      io.to(receiverUser.socketId).emit("receiveMessage", { sender, message,receiver });
+    }
+    await new Message({ sender, receiver, message }).save();
+  });
+
+  socket.on("disconnect", async () => {
+    console.log("❌ User disconnected:", socket.id);
+    await Soket.findOneAndDelete({ socketId: socket.id });
+  });
+});
+
+
+server.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
