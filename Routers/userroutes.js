@@ -96,17 +96,19 @@ router.post("/login", wrapAsync(async (req, res) => {
 //post add routed
 router.post('/newproduct', pass.authenticate("jwt", { session: false }), upload.fields([{ name: 'image', maxCount: 6 }]), wrapAsync(async (req, res) => {
   console.log(req.files);
-  let { name, description, price, age, location, catagory, other } = req.body;
-  console.log(name, description, price, age, location, catagory, other)
+  let { name, description, price, age, latitude,longitude, catagory, other } = req.body;
+  console.log(name, description, price, age, latitude,longitude , catagory, other)
 
   console.log(req.user);
 
-  if ([name, description, price, age, location, catagory, other].some((data) => data == undefined || data.trim() == "")) {
+  if ([name, description, price, age, catagory, other].some((data) => data == undefined || data.trim() == "")) {
     return res.json({ success: false, ErrorMsg: "some field are empty please fill now!" })
   }
   const list = new Listing(
     {
-      name, description, price, age, location, catagory, other,
+      name, description, price, age, location:{
+        latitude,longitude
+      }, catagory, other,
       image: req.files.image.map((file) => ({ url: file.path, filename: file.filename })),
       User: req.user
     }
@@ -178,24 +180,30 @@ router.get("/showproducts", wrapAsync(async (req, res) => {
   const { name, catagory, minprice, maxprice, minage, maxage } = req.query;
   console.log( name, catagory, minprice, maxprice, minage, maxage)
   const filters={}
-  if(name!=="undefined"){
-    filters.name=name
+  if (name && name !== "undefined") {
+    filters.name = { $regex: name, $options: "i" }; // Case-insensitive search
   }
-  if(catagory!=="undefined"){
-    filters.catagory=catagory
+  
+  if (catagory && catagory !== "undefined") {
+    filters.catagory = { $regex: catagory, $options: "i" };
   }
-  if(minprice!=="undefined"){
-    filters.minprice=minprice
+  
+  if (minprice && minprice !== "undefined") {
+    filters.price = { ...filters.price, $gte: Number(minprice) };
   }
-  if(maxprice!=="undefined"){
-    filters.maxage=maxprice
+  
+  if (maxprice && maxprice !== "undefined") {
+    filters.price = { ...filters.price, $lte: Number(maxprice) };
   }
-  if(minage!=="undefined"){
-    filters.minage=minage
+  
+  if (minage && minage !== "undefined") {
+    filters.age = { ...filters.age, $gte: Number(minage) };
   }
-  if(maxage!=="undefined"){
-    filters.maxage=maxage
+  
+  if (maxage && maxage !== "undefined") {
+    filters.age = { ...filters.age, $lte: Number(maxage) };
   }
+  
   console.log("filters",filters)
   const products = await Listing.find({
     $or: [
@@ -346,9 +354,9 @@ router.get('/wishlist/:productid',pass.authenticate("jwt", { session: false }),w
   const {productid}=req.params;
   console.log(productid);
   const user=req.user;
-  const User=await Users.findByIdAndUpdate({_id:user._id});
+  const User=await Users.findByIdAndUpdate({_id:user._id},{ new: true });
   console.log("user.....",User);
- let result=User.wishlist.includes(productid);
+  let result=User.wishlist.includes(productid);
 
   console.log(result)
   if(result){
@@ -356,8 +364,8 @@ router.get('/wishlist/:productid',pass.authenticate("jwt", { session: false }),w
       User.save();
       res.json({
           success:true,
-          wishlist:false
-
+          wishlist:false,
+          User
       })
   }
   else{
@@ -365,7 +373,8 @@ router.get('/wishlist/:productid',pass.authenticate("jwt", { session: false }),w
    User.save();
    res.json({
       success:true,
-      wishlist:true
+      wishlist:true,
+      User
    })
   }
   
