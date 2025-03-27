@@ -635,7 +635,7 @@ router.get("/messages", async (req, res) => {
         { sender: username, receiver: receiver },
         { sender: receiver, receiver: username }
     ]
-    }).sort({ createdAt: 1 }); // Sort messages by time
+    }).populate('sender receiver').sort({ createdAt: 1 }); // Sort messages by time
 
     res.json(messages);
   } catch (error) {
@@ -651,14 +651,14 @@ router.get("/groupmessages", async (req, res) =>{
       // Fetch messages where the user is either sender or receiver
       const messages = await Message.find({
           $or: [{ sender: username }, { receiver: username }]
-      }).sort({ createdAt: 1 });
-
+      }).populate('sender receiver').sort({ createdAt: 1 });
+     
       // Group messages based on sender-receiver pair
       let groupedMessages = {};
 
       messages.forEach((msg) => {
           // Create a unique key for each conversation pair (sorted)
-          let chatKey = [msg.sender, msg.receiver].sort().join("_");
+          let chatKey = [msg.sender._id, msg.receiver._id].sort().join("_");
 
           if (!groupedMessages[chatKey]) {
               groupedMessages[chatKey] = { participants: [msg.sender, msg.receiver], messages: [] };

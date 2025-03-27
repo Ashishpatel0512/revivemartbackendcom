@@ -87,7 +87,7 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("sendMessage", async ({ sender, receiver, message }) => {
-    const receiverUser = await Soket.findOne({ username: receiver });
+    const receiverUser = await Soket.findOne({ username: receiver._id });
     if (receiverUser) {
       io.to(receiverUser.socketId).emit("receiveMessage", { sender, message,receiver });
     }
