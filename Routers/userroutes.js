@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require("mongoose");
 const Users = require('../models/usermodel.js');
+const Admins = require('../models/admin.js');
 const Listing = require('../models/listingsmodel.js');
 const bidings = require('../models/bidingmodel.js')
 const bcrypt = require('bcryptjs');
@@ -68,17 +69,22 @@ router.post("/login", wrapAsync(async (req, res) => {
         return res.json({ success: false, ErrorMsg: "Password is incorrect!" })
       }
       else {
-        console.log(user._id)
-        const token = jwt.sign({ user }, "codexlab", { expiresIn: "1d" })
-        console.log(token);
-        return res.json(
-          {
-            success: true,
-            SuccessMsg: "login successgfully",
-            token: "Bearer " + token,
-            user: user
-          }
-        )
+        if (user.status == 'Block') {
+          return res.json({ success: false, ErrorMsg: "You Are Block!" })
+        }
+        else {
+          console.log(user._id)
+          const token = jwt.sign({ user }, "codexlab", { expiresIn: "1d" })
+          console.log(token);
+          return res.json(
+            {
+              success: true,
+              SuccessMsg: "login successgfully",
+              token: "Bearer " + token,
+              user: user
+            }
+          )
+        }
       }
     }
     else {
@@ -92,6 +98,50 @@ router.post("/login", wrapAsync(async (req, res) => {
   }
 
 }))
+
+//admin login
+router.post("/adminlogin", wrapAsync(async (req, res) => {
+  const { emailid, password } = req.body;
+  console.log(emailid, password);
+  if ([emailid, password].some((data) => data == undefined || data.trim() == "")) {
+    return res.json({ success: false, ErrorMsg: "some field are empty please fill now!" })
+  }
+  else {
+    const user = await Admins.findOne({ emailid });
+    console.log("user", user);
+    if (user?.emailid == emailid) {
+      if (!(bcrypt.compareSync(password, user.password))) {
+        return res.json({ success: false, ErrorMsg: "Password is incorrect!" })
+      }
+      else {
+        
+        
+          console.log(user._id)
+          const token = jwt.sign({ user }, "codexlab", { expiresIn: "1d" })
+          console.log(token);
+          return res.json(
+            {
+              success: true,
+              SuccessMsg: "login successgfully",
+              token: "Bearer " + token,
+              user: user
+            }
+          )
+       
+      }
+    }
+    else {
+      return res.json(
+        {
+          success: false,
+          ErrorMsg: "emailid is incorrect!",
+        }
+      )
+    }
+  }
+
+}))
+
 
 //post add routed
 router.post('/newproduct', pass.authenticate("jwt", { session: false }), upload.fields([{ name: 'image', maxCount: 6 }]), wrapAsync(async (req, res) => {
@@ -216,13 +266,17 @@ router.get("/showproducts", wrapAsync(async (req, res) => {
   
   console.log("filters",filters)
   const products = await Listing.find({
-    $or: [
-      filters
-      // { name: { $regex: name, $options: "i" } },
-      // { catagory: { $regex: catagory, $options: "i" } },
-      // { price: { $gte: minprice, $lte: maxprice } }, // Price range filter
-      // { age: { $gte: minage, $lte: maxage } } // Age range filter (1 to 3 years)
+    $and: [
+      { status: "Approve" },
+      { $or: [filters] }
     ]
+    // $or: [
+    //   filters
+    //   // { name: { $regex: name, $options: "i" } },
+    //   // { catagory: { $regex: catagory, $options: "i" } },
+    //   // { price: { $gte: minprice, $lte: maxprice } }, // Price range filter
+    //   // { age: { $gte: minage, $lte: maxage } } // Age range filter (1 to 3 years)
+    // ]
   })
   console.log(products);
   if (products) {
@@ -234,6 +288,21 @@ router.get("/userdata", pass.authenticate("jwt", { session: false }), wrapAsync(
   const user = req.user;
   console.log(user);
   const User = await Users.findById({ _id: user._id });
+  console.log(User);
+  res.json({
+    user: User
+  })
+}))
+//admindata
+router.get("/admindata", wrapAsync(async (req, res) => {
+ const {authorization}=req.headers;
+        console.log(authorization)
+        const token = authorization.replace("Bearer ", "");
+        console.log("token..........",token)
+        const decoded = jwt.verify(token, 'codexlab');
+  console.log("Decoded Token:............", decoded.user._id);
+  
+  const User = await Admins.findById({ _id: decoded.user._id });
   console.log(User);
   res.json({
     user: User
