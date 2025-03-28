@@ -18,7 +18,7 @@ const dataconnection=require('./db.js')
 // const Users=require('./models/usermodel.js');
 // const Posts=require('./models/.js');
 const userrouter=require('./Routers/userroutes.js');
-// const adminrouter=require('./Routers/adminroutes.js');
+const adminrouter=require('./Routers/adminroutes.js');
 const passport = require("./config/passport");
 const zlib = require('zlib');
 const fs = require('fs');
@@ -48,6 +48,7 @@ const corsOptions = {
 //   res.send('Hello World!')
 // })
 app.use('/',userrouter);
+app.use("/", adminrouter);
 
 app.all("*", (req, res, next) => {
   next(new ExpressError(404, "somethig went wrong please try again"))
