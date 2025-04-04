@@ -597,7 +597,7 @@ router.get("/profile/:userid", wrapAsync(async (req, res) => {
   const { userid } = req.params;
   console.log(userid)
   const user = await Users.findById({ _id: userid });
-  const listing = await Listing.find({ 'user': userid });
+  const listing = await Listing.find({ 'User': userid });
 
   res.json(
     {
