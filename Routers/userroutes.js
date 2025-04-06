@@ -264,11 +264,13 @@ router.get("/showproducts", wrapAsync(async (req, res) => {
     filters.age = { ...filters.age, $lte: Number(maxage) };
   }
   
-  console.log("filters",filters)
+  console.log("filters", filters)
+  const orConditions = Object.entries(filters).map(([key, value]) => ({ [key]: value }));
+  console.log("orConditions", orConditions)
   const products = await Listing.find({
     $and: [
       { status: "Approve" },
-      { $or: [filters] }
+      { $or: orConditions }
     ]
     // $or: [
     //   filters
@@ -757,5 +759,64 @@ router.get("/groupmessages", async (req, res) =>{
       res.status(500).json({ error: "Internal server error" });
   }
 });
+
+//ads routes
+router.post("/ads/:productid", pass.authenticate("jwt", { session: false }), wrapAsync(async (req, res) => {
+  const { productid } = req.params;
+  const user = req.user;
+  console.log(user)
+  const product = await Listing.findOne({ _id: productid });
+  console.log(product);
+  // check ads is already exist or not
+  const ads = await Ads.findOne({ Productid: productid });
+  console.log(ads)
+  if (ads) {
+    return res.json({ success: false, ErrorMsg: "Ads is already exist!" })
+  }
+  else {
+    if (product) {
+      const ads = new Ads({
+        Productid: product,
+        payment: "paid",
+      })
+      ads.save().then((data) => {
+         console.log(data);
+         return res.json({ success: true, SuccessMsg: "Ads Add Successfully!" })
+       })
+    }
+    else {
+         return res.json({ success: false, ErrorMsg: "product is not found !" })
+        }
+  }
+     
+  
+
+
+
+  // if (product) {
+  //   const ads = new Ads({
+  //     Productid: product,
+  //     payment: "paid",
+  //   })
+  //   ads.save().then((data) => {
+  //      console.log(data);
+  //      return res.json({ success: true, SuccessMsg: "Ads Add Successfully!" })
+  //    })
+  // }
+  // else {
+  //      return res.json({ success: false, ErrorMsg: "product is not found !" })
+  //     }
+}))
+
+//find ads
+router.get("/ads", pass.authenticate("jwt", { session: false }), wrapAsync(async (req, res) => {
+  const ads = await Ads.find({}).populate("Productid")
+  console.log(ads,".........................................................................................................");
+  res.json({
+    success: true,
+    ads
+  })
+}))
+
 
 module.exports = router
