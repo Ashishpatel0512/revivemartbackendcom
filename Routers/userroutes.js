@@ -328,7 +328,7 @@ router.post("/editprofile", pass.authenticate("jwt", { session: false }), wrapAs
   }
   const users = await Users.findOne({ emailid });
   console.log("CHECK USER", users);
-  if (users) {
+  if (users.emailid !== user.emailid && users) {
     return res.json({ success: false, ErrorMsg: "THIS EMAILID IS ALREDY EXITS!" })
 
   }
